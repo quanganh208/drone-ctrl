@@ -3,12 +3,9 @@
 > Phiên bản tiếng Anh: [README.md](./README.md)
 
 Hệ thống điều khiển drone không dây tự xây dựng. App desktop (Electron) → USB
-→ ESP32 #1 (ground station) → ESP-NOW 2.4GHz → ESP32 #2 (gắn trên drone) →
-*(tương lai: UART → STM32 FC)*.
-
-Toàn bộ code trong folder này độc lập, **không đụng gì tới firmware STM32
-F411 gốc** ở thư mục cha. Phase 1 + Phase 2 đã hoàn thành cầu radio + UI
-desktop, cả hai đều được verify trên phần cứng thật.
+→ ESP32 #1 (ground station) → ESP-NOW 2.4GHz → ESP32 #2 (gắn trên drone).
+Module Air output stick data qua UART để nối tới bất kỳ flight controller nào
+— xem [Hướng dẫn kết nối FC](docs/fc-integration-guide.md).
 
 ---
 
@@ -20,7 +17,7 @@ desktop, cả hai đều được verify trên phần cứng thật.
 | Firmware ESP32 GCS (USB CDC in, ESP-NOW out) | ✅ hoạt động, tick 100 Hz, watchdog failsafe |
 | Firmware ESP32 Air (ESP-NOW in, serial stats out) | ✅ hoạt động, latest-wins slot, dedup |
 | App Electron desktop | ✅ verified trên hardware thật |
-| Tích hợp STM32 FC (CRSF parser, angle PID, mixer) | ❌ chưa làm — Phase 3 |
+| Tích hợp FC (CRSF output → bất kỳ FC) | ❌ chưa làm — xem [hướng dẫn](docs/fc-integration-guide.md) |
 
 **Đo thực tế** tại 100 Hz trong 30 s (Phase 1 bench):
 `loss 0.00% · p50 ≈ 18 ms · p99 ≈ 24 ms` (latency bao gồm ~5-15 ms
@@ -375,10 +372,8 @@ stty -F /dev/ttyUSB1 115200 raw -echo cs8 -parenb -cstopb -hupcl clocal -ixon -i
 
 ## Roadmap
 
-- **Phase 3 — STM32 FC firmware**. Viết CRSF parser trong `F411_FC4/Core/`
-  (CRSF @ 420 kbaud trên USART1), thêm outer angle PID loop (dùng quaternion
-  có sẵn từ `ARHS`), motor mixer quad-X trên TIM3/4, ARM state machine,
-  failsafe 3 tầng.
+- **Phase 3 — FC firmware** (developer khác). CRSF parser, angle PID, motor
+  mixer quad-X, ARM state machine, failsafe. Xem hướng dẫn kết nối.
 - **Phase 4 — Integration + tethered flight**. Nối UART của Air ESP32 vào
   USART1 của FC, bench test không có cánh quạt, rồi tethered hover.
 

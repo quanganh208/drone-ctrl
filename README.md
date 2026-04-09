@@ -3,11 +3,9 @@
 > Tiếng Việt: [README.vi.md](./README.vi.md)
 
 DIY wireless drone control link. Desktop app (Electron) → USB → ESP32 (ground
-station) → ESP-NOW 2.4GHz → ESP32 (on drone) → *(future: UART → STM32 FC)*.
-
-Self-contained: nothing in this folder touches the STM32 F411 firmware at the
-repo root. Phase 1 + Phase 2 of the build plan deliver a proven-on-hardware
-radio bridge plus the desktop control UI.
+station) → ESP-NOW 2.4GHz → ESP32 (on drone). The Air module outputs decoded
+stick data that can be wired to any flight controller via CRSF UART — see
+[FC Integration Guide](docs/fc-integration-guide.md).
 
 ---
 
@@ -19,7 +17,7 @@ radio bridge plus the desktop control UI.
 | ESP32 GCS firmware (USB CDC stick in, ESP-NOW out) | ✅ working, 100 Hz tick, watchdog failsafe |
 | ESP32 Air firmware (ESP-NOW in, serial stats out) | ✅ working, latest-wins slot, dedup |
 | Electron desktop app | ✅ working, proven on real hardware |
-| STM32 FC integration (CRSF parser, angle PID, mixer) | ❌ not started — Phase 3 |
+| FC integration (CRSF output → any FC) | ❌ not started — see [integration guide](docs/fc-integration-guide.md) |
 
 Measured at 100 Hz over 30 s (Phase 1 bench):
 `loss 0.00% · p50 ≈ 18 ms · p99 ≈ 24 ms` (latency includes ~5-15 ms serial
