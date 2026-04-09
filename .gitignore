@@ -1,0 +1,25 @@
+# Local secrets
+**/link-config-local.h
+
+# Arduino build
+build/
+*.elf
+*.bin
+*.map
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node / Electron
+app-electron/node_modules/
+app-electron/out/
+app-electron/dist/
+
+# Bench results
+tools/bench-results/
+
+# OS
+.DS_Store
+Thumbs.db

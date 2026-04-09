@@ -1,0 +1,50 @@
+// link-config-local.h.example — template for LOCAL, UNCOMMITTED config.
+//
+// Copy this file to `link-config-local.h` (gitignored), then fill in your
+// own random PMK. Both GCS and Air sketches MUST include the same copy via
+// symlink from gcs-esp32/ and air-esp32/ back to shared/.
+//
+// SECURITY NOTE (RT#3 from red team review):
+//   The PMK encrypts ESP-NOW frames. If leaked, any attacker within RF
+//   range can inject valid frames. Never commit the real PMK. Generate a
+//   fresh one per device pair using a CSPRNG, e.g.:
+//     python3 -c "import secrets; print(', '.join(f'0x{b:02X}' for b in secrets.token_bytes(16)))"
+
+#pragma once
+
+// Pairwise Master Key — 16 random bytes.
+#define DRONE_LINK_PMK { \
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  \
+}
+
+// Local Master Key for this peer pair — 16 random bytes, different from PMK.
+#define DRONE_LINK_LMK { \
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  \
+}
+
+// SoftAP password for ground station — 20+ random chars (RT#8).
+#define DRONE_LINK_AP_PASSWORD "REPLACE_ME_20_CHAR_MIN"
+
+// Peer MAC addresses — filled in from `esptool flash-id` output.
+// (These two are not secret but keeping them here centralizes config.)
+#define DRONE_LINK_GCS_MAC { 0xcc, 0x7b, 0x5c, 0xfd, 0x0c, 0xf4 }
+#define DRONE_LINK_AIR_MAC { 0x24, 0xdc, 0xc3, 0xcf, 0xda, 0x10 }
+
+// Locked PHY rate — LR mode NOT supported on ESP32-D0WD-V3 (verified
+// Phase 01 preflight). Use 1 Mbps Long Preamble for best balance of
+// range and latency within supported set.
+// NOTE: #define to an integer constant, since Arduino preprocessor may
+// not see esp_wifi_types.h enum values early enough. Value 11 corresponds
+// to WIFI_PHY_RATE_1M_L in current IDF.
+#define DRONE_LINK_PHY_RATE WIFI_PHY_RATE_1M_L
+
+// WiFi channel — must match on both nodes.
+#define DRONE_LINK_CHANNEL 6
+
+// SoftAP SSID.
+#define DRONE_LINK_AP_SSID "DRONE-GCS"
+
+// UDP port for host ↔ GCS control traffic.
+#define DRONE_LINK_UDP_PORT 8888
