@@ -1,5 +1,8 @@
 // arm-state-machine.ts — hold-to-arm gate ticked by SerialTransport at 100 Hz.
 // Safety-critical: lives in main process, never trusts renderer directly.
+// Edge-triggered re-arm gate: after disarm()/forceStop(), the machine requires
+// armReq to drop to false at least once before a new ARMING cycle is allowed.
+// This defends against renderer-side stuck flags (see arm-button.tsx onUp guard).
 
 import type { ArmState } from '../shared/types'
 
@@ -14,6 +17,12 @@ const ARM_HOLD_MS = 2000
 export class ArmStateMachine {
   private state: ArmState = 'DISARMED' as ArmState
   private holdStartTs = 0
+  // Set when leaving ARMED via disarm()/forceStop(). Forces a deliberate
+  // false→true edge on armReq before the next ARMING cycle can begin.
+  private requireReqRelease = false
+  // Latches the diagnostic warn to one line per lock period — the lock can
+  // otherwise fire ~100 Hz while the renderer's armRequested flag is stuck.
+  private warnedThisLock = false
 
   constructor(private readonly emit: ArmEmit) {}
 
@@ -31,6 +40,27 @@ export class ArmStateMachine {
     if (current === 'STOPPED') return
     // ARMED is sticky — only disarm()/forceStop()/disconnect exits it.
     if (current === 'ARMED') return
+
+    // Edge-trigger gate: after disarm()/forceStop(), require armReq to go
+    // false at least once before a fresh ARMING cycle. Prevents instant
+    // re-arm if the renderer's armRequested flag is stuck at true.
+    if (this.requireReqRelease) {
+      if (!armReq) {
+        this.requireReqRelease = false
+        // fall through — the armReq=false branch below will keep DISARMED
+      } else {
+        if (!this.warnedThisLock) {
+          console.warn('[ArmStateMachine] blocked ARMING — armReq must release first')
+          this.warnedThisLock = true
+        }
+        this.holdStartTs = 0
+        if (this.state !== 'DISARMED') {
+          this.state = 'DISARMED'
+          this.emit('DISARMED', 0)
+        }
+        return
+      }
+    }
 
     const holdOk = armReq && throttle === 0
     const now = Date.now()
@@ -66,6 +96,8 @@ export class ArmStateMachine {
   disarm(): void {
     if (this.state === 'STOPPED') return
     this.holdStartTs = 0
+    this.requireReqRelease = true
+    this.warnedThisLock = false
     if (this.state !== 'DISARMED') {
       this.state = 'DISARMED'
       this.emit('DISARMED', 0)
@@ -75,12 +107,16 @@ export class ArmStateMachine {
   forceStop(): void {
     this.state = 'STOPPED'
     this.holdStartTs = 0
+    this.requireReqRelease = true
+    this.warnedThisLock = false
     this.emit('STOPPED', 0)
   }
 
   reset(): void {
     this.state = 'DISARMED'
     this.holdStartTs = 0
+    this.requireReqRelease = false
+    this.warnedThisLock = false
     this.emit('DISARMED', 0)
   }
 }
