@@ -27,10 +27,10 @@ graph LR
         AIR_DEDUP["CRC16 +<br/>Dedup"]
         AIR_SLOT["Latest-Wins<br/>Slot"]
         AIR_SERIAL["USB Serial<br/>Debug Print"]
-        AIR_CRSF["CRSF UART TX<br/>(tương lai)"]
+        AIR_CRSF["CRSF UART TX<br/>(420kbaud, 0x16)"]
         AIR_ESPNOW --> AIR_DEDUP --> AIR_SLOT
         AIR_SLOT --> AIR_SERIAL
-        AIR_SLOT -.-> AIR_CRSF
+        AIR_SLOT --> AIR_CRSF
     end
 
     subgraph FC_NODE["Flight Controller (tương lai)"]
@@ -43,7 +43,7 @@ graph LR
 
     APP -- "USB Serial<br/>18B @ 100Hz" --> GCS_USB
     GCS_ESPNOW -- "ESP-NOW 2.4GHz<br/>18B @ 100Hz ×2" --> AIR_ESPNOW
-    AIR_CRSF -. "UART 420kbaud<br/>CRSF 0x16" .-> FC_PARSER
+    AIR_CRSF -- "UART 420kbaud<br/>CRSF 0x16 @ ~143Hz" --> FC_PARSER
 
     style HOST fill:#1e293b,stroke:#64748b,color:#e2e8f0
     style GCS_NODE fill:#0f172a,stroke:#22c55e,color:#e2e8f0

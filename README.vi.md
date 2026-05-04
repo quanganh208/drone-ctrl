@@ -17,7 +17,7 @@ Module Air output stick data qua UART để nối tới bất kỳ flight contro
 | Firmware ESP32 GCS (USB CDC in, ESP-NOW out) | ✅ hoạt động, tick 100 Hz, watchdog failsafe |
 | Firmware ESP32 Air (ESP-NOW in, serial stats out) | ✅ hoạt động, latest-wins slot, dedup |
 | App Electron desktop | ✅ verified trên hardware thật |
-| Tích hợp FC (CRSF output → bất kỳ FC) | ❌ chưa làm — xem [hướng dẫn](docs/fc-integration-guide.md) |
+| Tích hợp FC (CRSF output → bất kỳ FC) | ✅ Air phát CRSF (FC failsafe còn future) — xem [hướng dẫn](docs/fc-integration-guide.md) |
 
 **Đo thực tế** tại 100 Hz trong 30 s (Phase 1 bench):
 `loss 0.00% · p50 ≈ 18 ms · p99 ≈ 24 ms` (latency bao gồm ~5-15 ms

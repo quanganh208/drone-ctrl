@@ -17,7 +17,7 @@ stick data that can be wired to any flight controller via CRSF UART — see
 | ESP32 GCS firmware (USB CDC stick in, ESP-NOW out) | ✅ working, 100 Hz tick, watchdog failsafe |
 | ESP32 Air firmware (ESP-NOW in, serial stats out) | ✅ working, latest-wins slot, dedup |
 | Electron desktop app | ✅ working, proven on real hardware |
-| FC integration (CRSF output → any FC) | ❌ not started — see [integration guide](docs/fc-integration-guide.md) |
+| FC integration (CRSF output → any FC) | ✅ Air CRSF output working (FC failsafe pending) — see [integration guide](docs/fc-integration-guide.md) |
 
 Measured at 100 Hz over 30 s (Phase 1 bench):
 `loss 0.00% · p50 ≈ 18 ms · p99 ≈ 24 ms` (latency includes ~5-15 ms serial

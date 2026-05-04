@@ -13,17 +13,17 @@ laptop to decoded stick data on the drone, ready for any flight controller.
 ┌──────────────┐     USB      ┌──────────┐    ESP-NOW     ┌──────────┐    UART     ┌──────┐
 │  Electron    │    serial    │  ESP32   │   2.4 GHz      │  ESP32   │   CRSF     │  FC  │
 │  Desktop App │ ───────────▶ │  GCS     │ ──────────────▶ │  Air     │ ─────────▶ │(any) │
-│  (laptop)    │   18 bytes   │  #1      │    18 bytes    │  #2      │  (future)  │      │
-│              │   @ 100 Hz   │          │  @ 100 Hz ×2   │  (drone) │            │      │
+│  (laptop)    │   18 bytes   │  #1      │    18 bytes    │  #2      │  0x16 RC   │      │
+│              │   @ 100 Hz   │          │  @ 100 Hz ×2   │  (drone) │  @ ~143 Hz │      │
 └──────────────┘              └──────────┘                └──────────┘            └──────┘
-     ✅ Done                     ✅ Done                     ✅ Done               ❌ TODO
+     ✅ Done                     ✅ Done                     ✅ Done               ✅ Done
 ```
 
-The system has **three completed hops** (App → GCS → Air) delivering stick
-commands from a desktop UI to the drone at 100 Hz with 0 % loss. The fourth
-hop (Air → FC via CRSF UART) is documented in
-[fc-integration-guide.md](fc-integration-guide.md) for downstream
-implementation.
+The system has **four completed hops** (App → GCS → Air → FC) delivering stick
+commands from a desktop UI to the flight controller at 100 Hz upstream and ~143 Hz
+on the CRSF wire. The fourth hop (Air → FC via CRSF UART) is **implemented** —
+see [fc-integration-guide.md](fc-integration-guide.md). FC-side failsafe timeout
+(no CRSF for > 500 ms → disarm) is still future work, see §Known limitations.
 
 ---
 
@@ -199,7 +199,7 @@ Layer 1: App → GCS
 Layer 2: GCS → Air
   Trigger: Air receives no valid ESP-NOW frame for > 500 ms
   Action:  Air's slot goes stale, serial print shows [FAILSAFE]
-  Effect:  (future) Air would send CRSF failsafe frame to FC
+  Effect:  Air emits CRSF with throttle=172, ARM=172 to FC
 
 Layer 3: Air → FC (future, FC-side)
   Trigger: FC receives no valid CRSF frame for > 500 ms
@@ -207,9 +207,12 @@ Layer 3: Air → FC (future, FC-side)
   Effect:  motors stop, drone descends
 ```
 
-**No single point of failure**: even if the App crashes, the GCS watchdog
-fires at 200 ms. If GCS crashes, Air's watchdog fires at 500 ms. If Air
-crashes, the FC's watchdog fires at 500 ms.
+**Layers 1–2 are live**: even if the App crashes, the GCS watchdog fires at
+200 ms. If GCS crashes, Air's watchdog fires at 500 ms and Air starts emitting
+CRSF safe values. **Layer 3 is still future** — STM32 parser at `Core/Src/main.c`
+does not yet enforce a CRSF timeout, so an Air hard-fault (firmware crash, power
+loss) will leave the FC repeating its last received channels. Required before
+tethered flight.
 
 ---
 
@@ -258,7 +261,8 @@ path. Real RF latency is estimated at 5–10 ms.
 | Item | Status |
 |---|---|
 | ESP-NOW encryption | Disabled — silently drops frames on Arduino-ESP32 3.3.7 |
-| CRSF output from Air | Not yet implemented — Air currently only prints to USB serial |
+| CRSF output from Air | ✅ Implemented — UART2 GPIO17 @ 420000 baud, type 0x16 @ ~143 Hz |
+| FC-side CRSF failsafe timeout | Not yet implemented — STM32 parser keeps last channels on Air loss |
 | Telemetry return path | Not yet implemented — FC cannot send data back to app |
 | WiFi SoftAP transport | Abandoned — coexistence with ESP-NOW unstable on single-radio ESP32 |
 | Latency measurement | Contaminated by serial path; needs UDP echo for RF-only numbers |

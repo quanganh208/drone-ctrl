@@ -19,18 +19,18 @@ How to connect the ESP32 Air module output to a flight controller (FC).
 │ App      │ ──────▶ │ ESP32│ ──────────▶ │ ESP32│ ───────────▶ │ STM32│
 │ (laptop) │  18B    │  #1  │   18B      │  #2  │   CRSF 0x16  │ F411 │
 └──────────┘         └──────┘            └──────┘              └──────┘
-       ✅ Done              ✅ Done          ❌ TODO              ❌ TODO
+       ✅ Done              ✅ Done          ✅ Done              ❌ TODO
 ```
 
 **What drone-ctrl provides today (done):**
 - Electron app sends 18-byte stick frames over USB at 100 Hz
 - GCS ESP32 relays stick frames to Air ESP32 over ESP-NOW
 - Air ESP32 decodes and validates (CRC16, dedup, failsafe)
+- **Air ESP32 emits CRSF type 0x16 frames over UART2 (GPIO17, 420000 baud) at ~143 Hz**
 - Air prints decoded values to USB serial for debug
 
-**What needs to be added (your job):**
-- Air firmware: encode decoded stick data into CRSF frames, output via UART TX
-- FC firmware: CRSF parser on USART RX, channel mapping, angle PID, mixer, ARM, failsafe
+**What needs to be added (FC side):**
+- FC firmware: CRSF parser on USART RX, channel mapping, angle PID, mixer, ARM, **failsafe timeout** (see §9 Known limitations)
 
 ---
 
@@ -264,5 +264,5 @@ channels. Move the app joystick and verify CH1-4 change accordingly.
 ## 9. Known limitations
 
 - **ESP-NOW encryption disabled** — stick data is plaintext on RF. See README tech debt section.
-- **No CRSF output yet** — Air currently only prints to USB serial. Adding CRSF UART output requires modifying `air-core.cpp` to call `FC_SERIAL.write(crsf_frame, 26)` on a 150 Hz timer alongside the existing ESP-NOW receive path.
+- **FC failsafe timeout missing** — STM32 parser at `Core/Src/stm32f4xx_it.c:399-484` and main loop at `Core/Src/main.c:637` do not check the time since the last valid CRSF frame. If the Air ESP32 hard-faults or loses power, the FC will keep using the last-received channels and motors can keep spinning. **Mitigation today:** the Air module emits CRSF with `throttle=172` and `ARM=172` whenever ESP-NOW input is older than 500 ms (Air still alive, RF link broken). A dedicated STM32-side failsafe must be added before tethered flight — defer to its own plan.
 - **No telemetry return path** — FC cannot send data back to the app yet. Requires bidirectional CRSF + Air ESP-NOW TX back to GCS.

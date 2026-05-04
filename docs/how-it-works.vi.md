@@ -13,16 +13,17 @@ stick trên drone, sẵn sàng nối tới bất kỳ flight controller nào.
 ┌──────────────┐     USB      ┌──────────┐    ESP-NOW     ┌──────────┐    UART     ┌──────┐
 │  Electron    │   serial     │  ESP32   │   2.4 GHz      │  ESP32   │   CRSF     │  FC  │
 │  App         │ ───────────▶ │  GCS     │ ──────────────▶ │  Air     │ ─────────▶ │(bất  │
-│  (laptop)    │   18 bytes   │  #1      │    18 bytes    │  #2      │  (future)  │ kỳ)  │
-│              │   @ 100 Hz   │          │  @ 100 Hz ×2   │  (drone) │            │      │
+│  (laptop)    │   18 bytes   │  #1      │    18 bytes    │  #2      │  0x16 RC   │ kỳ)  │
+│              │   @ 100 Hz   │          │  @ 100 Hz ×2   │  (drone) │  @ ~143 Hz │      │
 └──────────────┘              └──────────┘                └──────────┘            └──────┘
-     ✅ Xong                     ✅ Xong                     ✅ Xong              ❌ Chưa
+     ✅ Xong                     ✅ Xong                     ✅ Xong              ✅ Xong
 ```
 
-Hệ thống có **3 hop đã hoàn thành** (App → GCS → Air) truyền lệnh stick từ
-UI desktop tới drone ở 100 Hz với 0% mất gói. Hop thứ 4 (Air → FC qua CRSF
-UART) được document trong
-[fc-integration-guide.md](fc-integration-guide.md) cho developer khác.
+Hệ thống có **4 hop đã hoàn thành** (App → GCS → Air → FC) truyền lệnh stick
+từ UI desktop tới flight controller ở 100 Hz upstream và ~143 Hz trên dây CRSF.
+Hop thứ 4 (Air → FC qua CRSF UART) đã **implement** — xem
+[fc-integration-guide.md](fc-integration-guide.md). Failsafe timeout phía FC
+(không nhận CRSF > 500 ms → disarm) vẫn còn future, xem §Hạn chế.
 
 ---
 
@@ -188,7 +189,7 @@ Tầng 1: App → GCS
 Tầng 2: GCS → Air
   Trigger: Air không nhận ESP-NOW frame hợp lệ > 500 ms
   Hành động: slot Air stale, serial hiện [FAILSAFE]
-  Kết quả: (tương lai) Air gửi CRSF failsafe frame tới FC
+  Kết quả: Air phát CRSF với throttle=172, ARM=172 tới FC
 
 Tầng 3: Air → FC (tương lai, phía FC)
   Trigger: FC không nhận CRSF frame hợp lệ > 500 ms
@@ -196,9 +197,11 @@ Tầng 3: Air → FC (tương lai, phía FC)
   Kết quả: motor dừng, drone hạ xuống
 ```
 
-**Không có single point of failure**: app crash → GCS watchdog fire ở 200 ms.
-GCS crash → Air watchdog fire ở 500 ms. Air crash → FC watchdog fire ở
-500 ms.
+**Tầng 1–2 đã hoạt động**: app crash → GCS watchdog fire ở 200 ms. GCS crash →
+Air watchdog fire ở 500 ms và Air bắt đầu phát CRSF safe values. **Tầng 3 vẫn
+future** — STM32 parser tại `Core/Src/main.c` chưa enforce CRSF timeout, nên
+Air hard-fault (firmware crash, mất nguồn) sẽ làm FC giữ channel cuối cùng.
+Bắt buộc xong trước khi tethered flight.
 
 ---
 
@@ -244,7 +247,8 @@ RF thực ước tính 5–10 ms.
 | Vấn đề | Trạng thái |
 |---|---|
 | ESP-NOW encryption | Tắt — drop frame im lặng trên Arduino-ESP32 3.3.7 |
-| CRSF output từ Air | Chưa có — Air hiện chỉ in ra USB serial |
+| CRSF output từ Air | ✅ Đã có — UART2 GPIO17 @ 420000 baud, type 0x16 @ ~143 Hz |
+| FC-side CRSF failsafe timeout | Chưa có — STM32 parser giữ channel cuối khi mất Air |
 | Telemetry ngược | Chưa có — FC không gửi data ngược về app được |
 | WiFi SoftAP transport | Bỏ — không ổn định với ESP-NOW trên single-radio ESP32 |
 | Đo latency | Bị ô nhiễm bởi serial path; cần UDP echo cho số RF-only |
