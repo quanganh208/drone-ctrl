@@ -176,19 +176,23 @@ export class SerialTransport {
     let frame: StickFrame
 
     if (!snap.frame || age > STALE_MS) {
+      this.arm.tick(false, 0)
       frame = makeFailsafe((this.counter = (this.counter + 1) >>> 0))
     } else {
+      // Tick state machine with raw armReq so it can validate the hold-to-arm
+      // transition. Wire flag is gated on the validated state — disarm/stop
+      // cut the flag immediately even if renderer's armRequested is stuck.
+      this.arm.tick(snap.frame.armRequested, snap.frame.throttle)
       frame = {
         counter: (this.counter = (this.counter + 1) >>> 0),
         roll: snap.frame.roll,
         pitch: snap.frame.pitch,
         yaw: snap.frame.yaw,
         throttle: snap.frame.throttle,
-        flags: snap.frame.armRequested ? 1 /* ARM_REQ */ : 0
+        flags: this.arm.getState() === 'ARMED' ? 1 /* ARM_REQ */ : 0
       }
     }
 
-    this.arm.tick(frame.flags === 1, frame.throttle)
     this.port.write(packFrame(frame))
 
     // Telemetry watchdog: emit timeout event if GCS stats went silent.
